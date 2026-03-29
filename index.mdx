@@ -1,97 +1,78 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Gentleman Guardian Angel"
+description: "Provider-agnostic AI code review that enforces your coding standards on every commit. Zero dependencies. Pure Bash."
 ---
 
-## Setting up
+Gentleman Guardian Angel (gga) runs on every `git commit`, sending your staged files to an AI for review against your coding standards. If the code passes, the commit goes through. If it fails, the commit is blocked with a detailed explanation of every violation.
 
-Get your documentation site up and running in minutes.
+Works with Claude, Gemini, Codex, OpenCode, Ollama, LM Studio, GitHub Models — or any AI CLI you have installed.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Install gga and run your first AI code review in under 5 minutes
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="How It Works" icon="circle-info" href="/how-it-works">
+    Understand the commit flow, AI prompt structure, and pass/fail logic
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Providers" icon="plug" href="/configuration/providers">
+    Set up Claude, Gemini, Ollama, GitHub Models, and more
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Command Reference" icon="terminal" href="/commands/reference">
+    Full reference for every gga command and flag
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Why GGA?
 
-Everything you need to create world-class documentation.
+You have coding standards. Your team ignores them. Code reviews catch issues too late.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+GGA runs on every commit — like having a senior developer review every line before it hits the repo.
 
-## Need inspiration?
+```
+┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
+│   git commit    │ ──▶ │  AI Review   │ ──▶ │  ✅ Pass/Fail   │
+│  (staged files) │     │  (any LLM)   │     │  (with details) │
+└─────────────────┘     └──────────────┘     └─────────────────┘
+```
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={2}>
+  <Card title="Zero dependencies" icon="feather">
+    Pure Bash — no Node, Python, or Go required. Works on macOS, Linux, Windows (Git Bash), and WSL.
+  </Card>
+  <Card title="Provider agnostic" icon="shuffle">
+    Use any AI: local models via Ollama or LM Studio, or cloud APIs via Claude, Gemini, Codex, and GitHub Models.
+  </Card>
+  <Card title="Smart caching" icon="bolt">
+    Files that haven't changed are skipped automatically. Only new or modified files are reviewed.
+  </Card>
+  <Card title="CI/CD ready" icon="circle-check">
+    Run in GitHub Actions, GitLab CI, or any pipeline with `--ci` and `--pr-mode` flags.
+  </Card>
+</CardGroup>
+
+## Get started in 3 steps
+
+<Steps>
+  <Step title="Install gga">
+    ```bash
+    brew install gentleman-programming/tap/gga
+    ```
+    Or install manually — see the [Quick Start](/quickstart) guide.
+  </Step>
+  <Step title="Initialize your project">
+    ```bash
+    cd ~/your-project
+    gga init      # creates .gga config
+    gga install   # installs pre-commit hook
+    ```
+  </Step>
+  <Step title="Create your coding standards">
+    Create an `AGENTS.md` file with the rules your AI reviewer should enforce. Every commit is now reviewed automatically.
+
+    See [Writing your rules file](/configuration/rules-file) for best practices and examples.
+  </Step>
+</Steps>
+
+<Note>
+  GGA requires only Bash 5.0+ and an AI provider CLI installed on your machine. No API wrappers, no SDKs, no package managers needed.
+</Note>

@@ -1,0 +1,206 @@
+---
+title: "Changelog"
+description: "Full version history for Gentleman Guardian Angel."
+---
+
+<Update label="Latest" description="v2.8.0">
+  ## v2.8.0
+
+  ### Added
+
+  - **Windows Git Bash support (MINGW64)** — GGA now runs natively on Windows through Git Bash with no special configuration required.
+  - `bash install.sh` works correctly in the MINGW64 environment.
+  - PATH setup documented for Windows users.
+  - Platforms badge updated: macOS | Linux | Windows.
+
+  ### Tests
+
+  - 266 tests total, 0 failures.
+</Update>
+
+<Update label="v2.7.3">
+  ## v2.7.3
+
+  ### Fixed
+
+  - Platforms badge updated to include Windows.
+  - Version badge updated to reflect current release.
+  - Minor documentation improvements.
+</Update>
+
+<Update label="v2.7.0">
+  ## v2.7.0
+
+  ### Added
+
+  - **Timeout and progress feedback for AI provider calls** ([#35](https://github.com/Gentleman-Programming/gentleman-guardian-angel/issues/35), based on PR [#20](https://github.com/Gentleman-Programming/gentleman-guardian-angel/pull/20) by [@ramarivera](https://github.com/ramarivera)):
+    - Configurable `TIMEOUT` (default: 300s) with `GGA_TIMEOUT` environment variable override.
+    - Visual spinner in TTY mode; periodic text updates in CI/pipes.
+    - Exit code `124` on timeout with troubleshooting suggestions.
+    - Generic fallback for unknown or future providers.
+    - 19 new tests.
+
+  - **GitHub Models provider** ([#36](https://github.com/Gentleman-Programming/gentleman-guardian-angel/issues/36), based on PR [#3](https://github.com/Gentleman-Programming/gentleman-guardian-angel/pull/3) by [@Kyonax](https://github.com/Kyonax)):
+    - `PROVIDER="github:<model>"` — access GPT-4o, DeepSeek R1, Grok 3, Phi-4, LLaMA, and more.
+    - Authenticates via `gh auth token` — no extra API keys needed.
+    - Uses `python3` for safe JSON parsing (no `jq` dependency).
+    - 16 new tests.
+
+  - **PR review mode** ([#37](https://github.com/Gentleman-Programming/gentleman-guardian-angel/issues/37), based on PR [#30](https://github.com/Gentleman-Programming/gentleman-guardian-angel/pull/30) by [@Jose-cd](https://github.com/Jose-cd)):
+    - `--pr-mode`: review all files changed across the full PR range.
+    - `--diff-only`: with `--pr-mode`, send only diffs (faster and cheaper).
+    - Auto-detects base branch (`main`/`master`/`develop`) with `PR_BASE_BRANCH` config override.
+    - 26 new tests.
+
+  ### Tests
+
+  - 174 tests total, 0 failures.
+</Update>
+
+<Update label="v2.6.1">
+  ## v2.6.1
+
+  ### Fixed
+
+  - **Relaxed STATUS parsing to handle AI preamble text** ([#18](https://github.com/Gentleman-Programming/gentleman-guardian-angel/issues/18), PR [#19](https://github.com/Gentleman-Programming/gentleman-guardian-angel/pull/19)):
+    - Searches for `STATUS` in the first 15 lines instead of requiring it on line 1.
+    - Accepts markdown-formatted responses such as `**STATUS: PASSED**`.
+    - Works correctly with AI agents that have system-wide instruction files (`AGENTS.md`, `CLAUDE.md`).
+    - 14 new tests for STATUS parsing edge cases.
+
+  ### Tests
+
+  - 161 tests total.
+</Update>
+
+<Update label="v2.6.0">
+  ## v2.6.0
+
+  ### Added
+
+  - **Commit message validation support** (PR [#17](https://github.com/Gentleman-Programming/gentleman-guardian-angel/pull/17), based on [#11](https://github.com/Gentleman-Programming/gentleman-guardian-angel/issues/11) by [@ramarivera](https://github.com/ramarivera)):
+    - `gga install --commit-msg` installs a commit-msg hook instead of a pre-commit hook.
+    - The commit message is automatically included in the AI review when available.
+    - No extra config needed — behavior is automatic based on context.
+  - Signal handling for graceful cleanup on interruption.
+  - `gga uninstall` now handles both pre-commit and commit-msg hooks.
+
+  ### Fixed
+
+  - **Read from staging area (`git show :file`)** to prevent index corruption ([#15](https://github.com/Gentleman-Programming/gentleman-guardian-angel/issues/15), [#16](https://github.com/Gentleman-Programming/gentleman-guardian-angel/issues/16)):
+    - Fixes race conditions when files are modified after staging.
+    - Works correctly with lint-staged, Prettier, and other pre-commit tools.
+
+  ### Tests
+
+  - 147 tests (17 new for commit-msg and staging area fixes).
+</Update>
+
+<Update label="v2.5.1">
+  ## v2.5.1
+
+  ### Fixed
+
+  - **Gemini:** Use `-p` flag for non-interactive prompt passing — fixes exit code 41 in CI.
+  - **OpenCode:** Use positional argument instead of stdin pipe, per documentation.
+  - Both providers now work correctly in CI/non-interactive environments.
+</Update>
+
+<Update label="v2.5.0">
+  ## v2.5.0
+
+  ### Added
+
+  - **OpenCode provider support** (PR [#4](https://github.com/Gentleman-Programming/gentleman-guardian-angel/pull/4) by [@ramarivera](https://github.com/ramarivera)):
+    - `PROVIDER="opencode"` for the default model.
+    - `PROVIDER="opencode:model_name"` for a specific model.
+  - Added `CONTRIBUTING.md` with a development guide.
+
+  ### Tests
+
+  - 130 tests (12 new for OpenCode).
+</Update>
+
+<Update label="v2.4.0">
+  ## v2.4.0
+
+  ### Added
+
+  - **CI mode (`--ci` flag)** for GitHub Actions and GitLab CI:
+    - Reviews files from the last commit (`HEAD~1..HEAD`) instead of staged files.
+    - Cache automatically disabled in CI mode.
+
+  ### Tests
+
+  - 118 tests (6 new for CI mode).
+</Update>
+
+<Update label="v2.3.0">
+  ## v2.3.0
+
+  ### Fixed
+
+  - Fixed Ollama ANSI escape codes breaking STATUS parsing ([#6](https://github.com/Gentleman-Programming/gentleman-guardian-angel/issues/6)).
+  - New `execute_ollama_api()` using `curl` for clean JSON responses.
+  - Fallback `execute_ollama_cli()` with ANSI stripping.
+  - Security validation for `OLLAMA_HOST`.
+
+  ### Added
+
+  - Worktree support and improved hook install/uninstall (PR [#10](https://github.com/Gentleman-Programming/gentleman-guardian-angel/pull/10) by [@ramarivera](https://github.com/ramarivera)).
+  - Best practices documentation for the `AGENTS.md` rules file.
+  - GitHub Actions CI pipeline (lint, unit tests, integration tests).
+
+  ### Tests
+
+  - Expanded to 104 tests.
+</Update>
+
+<Update label="v2.2.0">
+  ## v2.2.0
+
+  ### Added
+
+  - Comprehensive test suite with 68 tests.
+  - Unit tests for `cache.sh` and `providers.sh`.
+  - Integration tests for all CLI commands.
+  - `Makefile` with `test`, `lint`, and `check` targets.
+
+  ### Fixed
+
+  - Fixed shellcheck warnings.
+</Update>
+
+<Update label="v2.1.0">
+  ## v2.1.0
+
+  ### Added
+
+  - Smart caching system — skip unchanged files.
+  - Auto-invalidation when `AGENTS.md` or `.gga` changes.
+  - Cache commands: `status`, `clear`, `clear-all`.
+  - `--no-cache` flag to bypass caching.
+</Update>
+
+<Update label="v2.0.0">
+  ## v2.0.0
+
+  ### Changed
+
+  - Renamed to Gentleman Guardian Angel (`gga`).
+  - Auto-migration from legacy `ai-code-review` hooks.
+
+  ### Added
+
+  - Homebrew tap distribution.
+</Update>
+
+<Update label="v1.0.0">
+  ## v1.0.0
+
+  ### Added
+
+  - Initial release with Claude, Gemini, Codex, and Ollama support.
+  - File pattern inclusion and exclusion.
+  - Strict mode for CI/CD pipelines.
+</Update>

@@ -1,0 +1,244 @@
+---
+title: "Troubleshooting"
+description: "Common issues and fixes for Gentleman Guardian Angel."
+---
+
+If you run into a problem not listed here, check the [GitHub issues](https://github.com/Gentleman-Programming/gentleman-guardian-angel/issues) or open a new one.
+
+---
+
+## Installation issues
+
+<AccordionGroup>
+  <Accordion title="GGA not found after installation">
+    If `gga` is not recognized after running the installer, the install directory is not in your `PATH`.
+
+    **Cause:** The installer places the binary in `~/.local/bin` (Linux/macOS) or `~/bin` (Windows Git Bash). These directories may not be in your shell's `PATH` by default.
+
+    The installer prints the exact `export PATH=...` line to add. If you missed it:
+
+    <Tabs>
+      <Tab title="Linux / macOS (bash)">
+        ```bash
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+        ```
+      </Tab>
+      <Tab title="macOS (zsh)">
+        ```bash
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+        ```
+      </Tab>
+      <Tab title="Windows Git Bash">
+        ```bash
+        echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+        ```
+      </Tab>
+    </Tabs>
+
+    Then verify:
+
+    ```bash
+    which gga
+    gga version
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Provider issues
+
+<AccordionGroup>
+  <Accordion title='"Provider not found"'>
+    GGA cannot locate the CLI for your chosen provider.
+
+    **Cause:** The provider's CLI is not installed, or it is installed but not in your `PATH`.
+
+    **Fix:** Verify the CLI is installed and accessible:
+
+    ```bash
+    # Check if your provider CLI is installed and in PATH
+    which claude   # Should show: /usr/local/bin/claude or similar
+    which gemini
+    which codex
+    which ollama
+
+    # Test if the provider works
+    echo "Say hello" | claude --print
+
+    # For LM Studio, check if the API is accessible
+    curl http://localhost:1234/v1/models
+    ```
+
+    If the command is found but the test fails, check the provider's own documentation for authentication or startup requirements.
+  </Accordion>
+
+  <Accordion title="GitHub Models setup">
+    Using `PROVIDER="github:<model>"` requires the GitHub CLI and an active authenticated session.
+
+    **Fix:** Install and authenticate the GitHub CLI, then configure GGA:
+
+    ```bash
+    # 1. Install GitHub CLI
+    brew install gh
+
+    # 2. Authenticate
+    gh auth login
+
+    # 3. Configure GGA
+    echo 'PROVIDER="github:gpt-4o"' > .gga
+    ```
+
+    <Note>See the [GitHub Marketplace Models](https://github.com/marketplace/models) for a full list of available model names you can use with `github:<model>`.</Note>
+  </Accordion>
+
+  <Accordion title="LM Studio connection issues">
+    GGA reports "Failed to connect to LM Studio" when trying to run a review.
+
+    **Cause:** LM Studio is not running, the API server is disabled, or the port differs from the default.
+
+    **Fix:**
+
+    1. Open LM Studio and ensure the local API server is enabled.
+    2. Check the port in LM Studio settings (default: `1234`).
+    3. Set the correct host in `.gga`:
+
+    ```bash
+    # Default
+    LMSTUDIO_HOST="http://localhost:1234/v1"
+
+    # Custom port
+    LMSTUDIO_HOST="http://localhost:8080/v1"
+    ```
+
+    4. Test the connection directly:
+
+    ```bash
+    curl http://localhost:1234/v1/models
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Hook issues
+
+<AccordionGroup>
+  <Accordion title="GGA not running from VS Code Source Control panel">
+    GGA does not trigger when you commit from VS Code's Source Control UI, but works fine from the terminal.
+
+    **Cause:** VS Code may use a different shell profile than your terminal, so `gga` may not be in its `PATH`.
+
+    **Fix:**
+
+    1. Confirm the hook is installed:
+       ```bash
+       ls -la .git/hooks/pre-commit
+       ```
+    2. Check that `gga` is in the PATH VS Code uses. On Windows, check both PowerShell and Git Bash inside VS Code:
+       ```bash
+       where gga      # PowerShell
+       which gga      # Git Bash
+       ```
+    3. If PATH differs, hardcode the full path in the hook:
+       ```bash
+       # .git/hooks/pre-commit
+       /opt/homebrew/bin/gga run || exit 1
+       ```
+    4. On Windows, hardcode the executable path if needed:
+       ```bash
+       C:/Users/<you>/.local/bin/gga.exe run || exit 1
+       ```
+    5. Check the Git output channel in VS Code (**View → Output → Git**) for error messages.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Configuration issues
+
+<AccordionGroup>
+  <Accordion title='"Rules file not found"'>
+    GGA exits with an error saying it cannot find the rules file.
+
+    **Cause:** No `AGENTS.md` (or the file named in `RULES_FILE`) exists in the project root.
+
+    **Fix:** Create your rules file:
+
+    ```bash
+    # Create your rules file
+    touch AGENTS.md
+
+    # Add your coding standards
+    echo "# My Coding Standards" > AGENTS.md
+    echo "- No console.log in production" >> AGENTS.md
+    ```
+
+    If you use a custom name, make sure `RULES_FILE` in `.gga` matches:
+
+    ```bash
+    RULES_FILE=".coding-standards.md"
+    ```
+  </Accordion>
+
+  <Accordion title="Slow reviews on large files">
+    Reviews take a long time or feel sluggish when many files are staged.
+
+    **Cause:** GGA sends full file contents to the provider. Large or auto-generated files add significant token overhead.
+
+    **Fix:** Add large and generated files to `EXCLUDE_PATTERNS` in `.gga`:
+
+    ```bash
+    EXCLUDE_PATTERNS="*.min.js,*.bundle.js,dist/*,build/*,*.generated.ts"
+    ```
+
+    <Tip>Review your `FILE_PATTERNS` too — keep it scoped to the file types where your rules actually apply.</Tip>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Review issues
+
+<AccordionGroup>
+  <Accordion title='"Ambiguous response" in strict mode'>
+    GGA reports an ambiguous response and blocks the commit even though the code looks fine.
+
+    **Cause:** The AI provider did not include `STATUS: PASSED` or `STATUS: FAILED` in the first 15 lines of its response. With `STRICT_MODE="true"`, GGA treats any non-conforming response as a failure.
+
+    **Fix:**
+
+    1. Switch to Claude — it is the most reliable provider for following structured response instructions.
+    2. Simplify your `AGENTS.md` — overly complex or contradictory rules can confuse the AI.
+    3. Temporarily disable strict mode to unblock yourself while you investigate:
+
+    ```bash
+    # In .gga
+    STRICT_MODE="false"
+    ```
+
+    <Warning>Only disable strict mode temporarily. In CI/CD environments, an ambiguous response that passes silently defeats the purpose of the review.</Warning>
+  </Accordion>
+
+  <Accordion title="Timeout errors (exit code 124)">
+    Reviews fail with exit code `124`, indicating a timeout.
+
+    **Cause:** The AI provider took longer than the configured timeout (default: 300 seconds) to respond. This is more likely with large files, slow local models, or network latency.
+
+    **Fix:** Increase the timeout in `.gga`, or pass it as an environment variable:
+
+    ```bash
+    # In .gga
+    TIMEOUT="600"
+
+    # Or as a one-off environment override
+    GGA_TIMEOUT=600 gga run
+    ```
+
+    You can also reduce the amount of content sent per review:
+
+    ```bash
+    EXCLUDE_PATTERNS="*.min.js,*.bundle.js,dist/*"
+    ```
+  </Accordion>
+</AccordionGroup>

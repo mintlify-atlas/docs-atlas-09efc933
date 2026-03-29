@@ -1,0 +1,237 @@
+---
+title: "Command reference"
+description: "Full reference for every gga command and flag."
+---
+
+## All commands
+
+| Command | Description | Example |
+| --- | --- | --- |
+| `gga init` | Create sample `.gga` config file | `gga init` |
+| `gga install` | Install git pre-commit hook (default) | `gga install` |
+| `gga install --commit-msg` | Install git commit-msg hook | `gga install --commit-msg` |
+| `gga uninstall` | Remove git hooks from current repo | `gga uninstall` |
+| `gga run` | Run code review on staged files | `gga run` |
+| `gga run --no-cache` | Run review ignoring cache | `gga run --no-cache` |
+| `gga run --ci` | Run review on last commit (CI/CD) | `gga run --ci` |
+| `gga run --pr-mode` | Review all files changed in the full PR | `gga run --pr-mode` |
+| `gga run --pr-mode --diff-only` | PR review with diffs only (faster, cheaper) | `gga run --pr-mode --diff-only` |
+| `gga config` | Display current configuration and status | `gga config` |
+| `gga cache status` | Show cache status for current project | `gga cache status` |
+| `gga cache clear` | Clear cache for current project | `gga cache clear` |
+| `gga cache clear-all` | Clear all cached data | `gga cache clear-all` |
+| `gga version` | Show installed version | `gga version` |
+| `gga help` | Show help message with all commands | `gga help` |
+
+---
+
+## `gga init`
+
+Creates a sample `.gga` configuration file in your project root with sensible defaults.
+
+```bash
+gga init
+```
+
+**Terminal output:**
+
+```bash
+✅ Created config file: .gga
+```
+
+The generated file includes commented examples for every setting: `PROVIDER`, `FILE_PATTERNS`, `EXCLUDE_PATTERNS`, `RULES_FILE`, `STRICT_MODE`, `TIMEOUT`, and `PR_BASE_BRANCH`.
+
+<Note>
+  If a `.gga` file already exists, `gga init` prompts you before overwriting:
+
+  ```
+  ⚠️  Config file already exists: .gga
+  Overwrite? (y/N):
+  ```
+
+  Press `y` to overwrite or any other key to abort.
+</Note>
+
+---
+
+## `gga install`
+
+Installs a git hook that automatically runs code review on every commit.
+
+<Tabs>
+  <Tab title="Pre-commit hook (default)">
+    Installs a pre-commit hook. The hook runs `gga run` before every commit and blocks the commit if the review fails.
+
+    ```bash
+    gga install
+    ```
+
+    **Terminal output:**
+
+    ```bash
+    ✅ Installed pre-commit hook: .git/hooks/pre-commit
+    ```
+  </Tab>
+  <Tab title="Commit-msg hook">
+    Installs a commit-msg hook instead of a pre-commit hook. The hook passes the commit message file to `gga run "$1"`, so the commit message is included in the AI review — useful for enforcing conventional commits or issue references.
+
+    ```bash
+    gga install --commit-msg
+    ```
+
+    **Terminal output:**
+
+    ```bash
+    ✅ Installed commit-msg hook: .git/hooks/commit-msg
+    ```
+  </Tab>
+</Tabs>
+
+**Appends rather than replaces.** If a hook file already exists, GGA adds its block between markers (`# ======== GGA START ========` / `# ======== GGA END ========`) rather than overwriting the file. If an existing `exit 0` statement is found, GGA inserts its block before the final exit so it always runs.
+
+<Note>
+  GGA uses `git rev-parse --git-path hooks` to locate the hooks directory. This works correctly for both regular repositories and git worktrees.
+</Note>
+
+---
+
+## `gga uninstall`
+
+Removes GGA from the pre-commit and/or commit-msg hooks in your repository.
+
+```bash
+gga uninstall
+```
+
+**Terminal output:**
+
+```bash
+✅ Removed pre-commit hook (was GGA-only)
+```
+
+If GGA was appended alongside other hook content, only the GGA block is removed and the rest of the hook file is preserved:
+
+```bash
+✅ Removed Gentleman Guardian Angel from pre-commit hook
+```
+
+If the hook file becomes empty after removal (only the shebang line and whitespace remain), GGA deletes the file entirely.
+
+---
+
+## `gga run`
+
+Reviews staged files against your `AGENTS.md` rules by sending them to your configured AI provider. Smart caching is enabled by default — unchanged files that previously passed are skipped.
+
+```bash
+gga run
+```
+
+See [Run modes](/commands/run-modes) for all flags: `--no-cache`, `--ci`, `--pr-mode`, and `--diff-only`.
+
+---
+
+## `gga config`
+
+Shows the current configuration, the location of each loaded config file, and the resolved value of every setting.
+
+```bash
+gga config
+```
+
+**Terminal output:**
+
+```bash
+Current Configuration:
+
+Config Files:
+  Global:  Not found
+  Project: .gga
+
+Values:
+  PROVIDER:          claude
+  FILE_PATTERNS:     *.ts,*.tsx,*.js,*.jsx
+  EXCLUDE_PATTERNS:  *.test.ts,*.spec.ts
+  RULES_FILE:        AGENTS.md
+  STRICT_MODE:       true
+  TIMEOUT:           300s
+  PR_BASE_BRANCH:    auto-detect
+
+Rules File: Found
+```
+
+Config files are loaded in order: global config (`~/.config/gga/config`) first, then project config (`.gga`), then environment variables. Each layer overrides the previous one.
+
+---
+
+## `gga cache <subcommand>`
+
+Manages the smart file review cache. See [Smart caching](/commands/caching) for a full explanation of how the cache works.
+
+<CodeGroup>
+
+```bash gga cache status
+gga cache status
+```
+
+```bash gga cache clear
+gga cache clear
+```
+
+```bash gga cache clear-all
+gga cache clear-all
+```
+
+</CodeGroup>
+
+- **`status`** — Shows the cache directory, validity, file count, and size for the current project.
+- **`clear`** — Clears the cache for the current project only.
+- **`clear-all`** — Clears cached data for all projects.
+
+---
+
+## `gga version`
+
+Shows the installed version of gga.
+
+```bash
+gga version
+```
+
+**Terminal output:**
+
+```bash
+gga v1.2.3
+```
+
+After printing the version, gga automatically checks GitHub for a newer release and prints an upgrade notice if one is available:
+
+```bash
+gga v1.2.3
+  Update available: v1.2.3 → v1.3.0
+  brew update && brew upgrade gga
+```
+
+<Note>
+  The update check is skipped for dev builds (when `VERSION=dev`). It has a 2-second timeout and fails silently if the network is unavailable.
+</Note>
+
+---
+
+## Bypass review
+
+To commit without running the pre-commit hook, use `--no-verify`:
+
+```bash
+git commit --no-verify -m "wip: work in progress"
+```
+
+Short form:
+
+```bash
+git commit -n -m "hotfix: urgent fix"
+```
+
+<Warning>
+  Bypassing the hook skips the AI review entirely. Use this only when necessary — for example, for work-in-progress commits or emergency hotfixes.
+</Warning>

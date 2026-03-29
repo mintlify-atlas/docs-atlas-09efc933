@@ -1,0 +1,123 @@
+---
+title: "Smart caching"
+description: "How GGA skips unchanged files to make repeated reviews fast and cheap."
+---
+
+GGA caches the result of every passed file review. On the next commit, any file that hasn't changed since its last passed review is skipped entirely — no AI call, no wait, no cost.
+
+## How it works
+
+```
+1. Hash AGENTS.md + .gga config
+   └─► If changed → Invalidate ALL cache
+
+2. For each staged file:
+   └─► Hash file content
+       └─► If hash exists in cache with PASSED → Skip
+       └─► If not cached → Send to AI for review
+
+3. After PASSED review:
+   └─► Store file hash in cache
+```
+
+The cache key for each file is its content hash. The validity of the entire cache depends on a separate metadata hash of your `AGENTS.md` rules file and `.gga` config. If either changes, all cached results are discarded and every file is re-reviewed.
+
+## Cache invalidation
+
+| Change | Effect |
+| --- | --- |
+| File content changes | Only that file is re-reviewed |
+| `AGENTS.md` changes | **All files** are re-reviewed |
+| `.gga` config changes | **All files** are re-reviewed |
+
+<Note>
+  Cache invalidation happens automatically. You don't need to clear the cache when you update your rules — GGA detects the change and invalidates everything on the next run.
+</Note>
+
+## Cache commands
+
+### `gga cache status`
+
+Shows the cache directory, validity, file count, and size for the current project.
+
+```bash
+gga cache status
+```
+
+**Terminal output:**
+
+```bash
+Cache Status:
+
+  Cache directory: ~/.cache/gga/a1b2c3d4...
+  Cache validity: Valid
+  Cached files: 12
+  Cache size: 4.0K
+```
+
+If the cache is invalid (rules or config changed since last run):
+
+```bash
+  Cache validity: Invalid (rules or config changed)
+```
+
+### `gga cache clear`
+
+Clears the cache for the current project only. Other projects' caches are not affected.
+
+```bash
+gga cache clear
+```
+
+**Terminal output:**
+
+```bash
+✅ Cleared cache for current project
+```
+
+### `gga cache clear-all`
+
+Clears cached data for all projects on this machine.
+
+```bash
+gga cache clear-all
+```
+
+**Terminal output:**
+
+```bash
+✅ Cleared all cache data
+```
+
+## Bypass cache
+
+To force a review of all staged files, ignoring any cached results:
+
+```bash
+gga run --no-cache
+```
+
+<Tip>
+  Use `--no-cache` when you want to verify that all files still pass after making changes to `AGENTS.md`, before the automatic invalidation has taken effect.
+</Tip>
+
+## Cache location
+
+The cache is stored under `~/.cache/gga/`, with one directory per project identified by a hash of the project path.
+
+```
+~/.cache/gga/
+├── <project-hash-1>/
+│   ├── metadata          # Hash of AGENTS.md + .gga
+│   └── files/
+│       ├── <file-hash-a> # "PASSED"
+│       └── <file-hash-b> # "PASSED"
+└── <project-hash-2>/
+    └── ...
+```
+
+Each entry in `files/` is named by the content hash of the reviewed file and contains the string `PASSED`. The `metadata` file contains a combined hash of `AGENTS.md` and `.gga` — if this hash no longer matches the current files, the entire cache directory is considered invalid.
+
+<Note>
+  Cache is automatically disabled in `--ci` and `--pr-mode`. It only applies to the default staged-file mode (`gga run`).
+</Note>

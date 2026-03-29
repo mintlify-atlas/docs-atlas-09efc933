@@ -1,0 +1,111 @@
+---
+title: "Git hooks"
+description: "How GGA integrates with git using standard pre-commit and commit-msg hooks."
+---
+
+GGA integrates with git natively — no third-party hook manager required. When you run `gga install`, it writes a standard git hook that fires automatically on every commit.
+
+## Default pre-commit hook
+
+Running `gga install` in a git repository creates `.git/hooks/pre-commit` with the following content:
+
+```bash .git/hooks/pre-commit
+#!/usr/bin/env bash
+
+# ======== GGA START ========
+# Gentleman Guardian Angel - Code Review
+gga run || exit 1
+# ======== GGA END ========
+```
+
+The hook runs `gga run`, which reviews your staged files against the rules in your `AGENTS.md`. If the review fails, the commit is blocked.
+
+## Commit-msg hook
+
+To also review commit messages, install the commit-msg variant:
+
+```bash
+gga install --commit-msg
+```
+
+This creates `.git/hooks/commit-msg` and passes the commit message file to GGA automatically:
+
+```bash .git/hooks/commit-msg
+#!/usr/bin/env bash
+
+# ======== GGA START ========
+# Gentleman Guardian Angel - Code Review
+gga run "$1" || exit 1
+# ======== GGA END ========
+```
+
+The `$1` argument is the path to the temporary file containing the commit message. GGA reads it and includes the message as part of the review context.
+
+## Coexisting with existing hooks
+
+GGA uses marker comments to delimit its section of a hook file:
+
+```
+# ======== GGA START ========
+# ======== GGA END ========
+```
+
+If a hook file already exists, GGA inserts its block between these markers without overwriting the rest of the file. This means you can combine GGA with any other pre-commit tooling.
+
+If the existing hook ends with a bare `exit 0` statement, GGA inserts its block **before** that final exit to ensure the review runs.
+
+<Note>
+Running `gga install` a second time on the same repository is a no-op. GGA detects the markers and skips re-installation.
+</Note>
+
+## Uninstalling
+
+```bash
+gga uninstall
+```
+
+This removes the GGA marker block from the hook file. If the remaining content is only a shebang line or whitespace, GGA deletes the file entirely so git does not run an empty hook.
+
+## Git worktrees
+
+GGA resolves the hooks directory using:
+
+```bash
+git rev-parse --git-path hooks
+```
+
+This command returns the correct hooks directory for both regular repositories and git worktrees. In a worktree, git looks for hooks in the main repository's `.git/hooks` directory — `--git-path hooks` points there automatically, so no extra configuration is needed.
+
+## VS Code and Antigravity
+
+GGA installs as a standard git hook, so it fires whenever `git commit` runs — regardless of the IDE or terminal in use.
+
+**VS Code Source Control panel**
+
+Commits made via the Source Control panel (`Ctrl+Enter` / `Cmd+Enter`) trigger the pre-commit hook normally. Hook output appears in the **Git** output channel: open it with **View → Output**, then select **Git** from the dropdown.
+
+**Bypassing the hook**
+
+To skip the review for a single commit, use `--no-verify` from the integrated terminal:
+
+```bash
+git commit --no-verify -m "wip"
+```
+
+<Warning>
+`--no-verify` is not available from the Source Control panel UI. You must use the terminal.
+</Warning>
+
+**Antigravity**
+
+Antigravity includes Gemini built-in. Set `PROVIDER="gemini"` in your `.gga` config and ensure the `gemini` CLI is in your PATH. GGA works through git hooks with no IDE-specific configuration.
+
+**Windows + VS Code**
+
+VS Code may launch git from a different shell profile than your terminal. If `gga` is not found when committing from VS Code, confirm it is resolvable inside VS Code by running:
+
+```bash
+where gga
+```
+
+in the integrated PowerShell or Command Prompt terminal. If it is not found, add the directory containing `gga` to your system `PATH`.

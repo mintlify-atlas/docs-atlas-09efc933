@@ -1,0 +1,94 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Gentleman Guardian Angel",
+  "projectDescription": "A provider-agnostic CLI tool that runs AI-powered code review on every git commit, enforcing your coding standards using Claude, Gemini, Codex, Ollama, or any other AI.",
+  "theme": "aspen",
+  "primaryColor": "#94cb04",
+  "lightColor": "#545454",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "how-it-works"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/config-file",
+              "configuration/rules-file",
+              "configuration/providers"
+            ]
+          },
+          {
+            "group": "Commands",
+            "pages": [
+              "commands/reference",
+              "commands/run-modes",
+              "commands/caching"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/git-hooks",
+              "integrations/ci-cd",
+              "integrations/hook-managers"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "resources/examples",
+              "resources/troubleshooting",
+              "resources/changelog"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Provider-agnostic: works with Claude, Gemini, Codex, OpenCode, Ollama, LM Studio, and GitHub Models",
+    "Zero dependencies: pure Bash, no Node/Python/Go required",
+    "Git-native integration via pre-commit and commit-msg hooks",
+    "Smart file caching to skip unchanged files and speed up reviews",
+    "PR review mode to review entire pull request diffs",
+    "CI/CD support with --ci flag for GitHub Actions and GitLab CI",
+    "Configurable file patterns and exclusion rules",
+    "Skill-based AGENTS.md approach for large or multi-stack projects",
+    "Cross-platform: macOS, Linux, Windows (Git Bash), WSL"
+  ],
+  "publicApiSurface": [
+    "gga init",
+    "gga install",
+    "gga install --commit-msg",
+    "gga uninstall",
+    "gga run",
+    "gga run --no-cache",
+    "gga run --ci",
+    "gga run --pr-mode",
+    "gga run --pr-mode --diff-only",
+    "gga config",
+    "gga cache status",
+    "gga cache clear",
+    "gga cache clear-all",
+    "gga version",
+    "PROVIDER config option",
+    "FILE_PATTERNS config option",
+    "EXCLUDE_PATTERNS config option",
+    "RULES_FILE config option",
+    "STRICT_MODE config option",
+    "TIMEOUT config option",
+    "PR_BASE_BRANCH config option",
+    "GGA_PROVIDER environment variable",
+    "GGA_TIMEOUT environment variable"
+  ]
+}

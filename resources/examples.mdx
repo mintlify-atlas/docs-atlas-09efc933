@@ -1,0 +1,417 @@
+---
+title: "Examples"
+description: "Real-world walkthrough and project configuration examples for Gentleman Guardian Angel."
+---
+
+## How it works
+
+Every `git commit` triggers the pre-commit hook, which sends your staged files and coding rules to your chosen AI provider. The provider returns a verdict and GGA either allows or blocks the commit.
+
+```
+git commit -m "feat: add feature"
+    │
+    ▼
+┌───────────────────────────────────────┐
+│         Pre-commit Hook (gga run)     │
+└───────────────────────────────────────┘
+    │
+    ├──▶ 1. Load config from .gga
+    │
+    ├──▶ 2. Validate provider is installed
+    │
+    ├──▶ 3. Check AGENTS.md exists
+    │
+    ├──▶ 4. Get staged files matching FILE_PATTERNS
+    │       (excluding EXCLUDE_PATTERNS)
+    │
+    ├──▶ 5. Read coding rules from AGENTS.md
+    │
+    ├──▶ 6. Build prompt: rules + file contents
+    │
+    ├──▶ 7. Send to AI provider (with timeout + progress)
+    │       (claude/gemini/codex/opencode/ollama/lmstudio/github/...)
+    │
+    └──▶ 8. Parse response
+            │
+            ├── "STATUS: PASSED" ──▶ ✅ Commit proceeds
+            │
+            └── "STATUS: FAILED" ──▶ ❌ Commit blocked
+                                       (shows violation details)
+```
+
+---
+
+## Real-world walkthrough
+
+The following example walks through a complete setup — from initialization to a failed commit, fixing the violations, and a passing commit.
+
+<Steps>
+  <Step title="Set up GGA in your project">
+    Navigate to your project and run `gga init` to create the default config file.
+
+    ```bash
+    $ cd ~/projects/my-react-app
+
+    $ gga init
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      Gentleman Guardian Angel v2.8.0
+      Provider-agnostic code review using AI
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ✅ Created config file: .gga
+
+    ℹ️  Next steps:
+      1. Edit .gga to set your preferred provider
+      2. Create AGENTS.md with your coding standards
+      3. Run: gga install
+    ```
+  </Step>
+
+  <Step title="Configure your provider">
+    Open `.gga` and set your provider and file patterns.
+
+    ```bash
+    $ cat .gga
+
+    # AI Provider (required)
+    PROVIDER="claude"
+
+    # File patterns to include in review (comma-separated)
+    FILE_PATTERNS="*.ts,*.tsx,*.js,*.jsx"
+
+    # File patterns to exclude from review (comma-separated)
+    EXCLUDE_PATTERNS="*.test.ts,*.spec.ts,*.test.tsx,*.spec.tsx,*.d.ts"
+
+    # File containing code review rules
+    RULES_FILE="AGENTS.md"
+
+    # Strict mode: fail if AI response is ambiguous
+    STRICT_MODE="true"
+    ```
+  </Step>
+
+  <Step title="Create your coding standards">
+    Create `AGENTS.md` in your project root with your rules. Keep it concise — the AI performs better with focused, direct rules.
+
+    ```bash
+    $ cat > AGENTS.md << 'EOF'
+    # Code Review Rules
+
+    ## TypeScript
+    - No `any` types - use proper typing
+    - Use `const` over `let` when possible
+    - Prefer interfaces over type aliases for objects
+
+    ## React
+    - Use functional components with hooks
+    - No `import * as React` - use named imports like `import { useState }`
+    - All images must have alt text for accessibility
+
+    ## Styling
+    - Use Tailwind CSS utilities only
+    - No inline styles or CSS-in-JS
+    - No hardcoded colors - use design system tokens
+    EOF
+    ```
+  </Step>
+
+  <Step title="Install the git hook">
+    Run `gga install` to add the pre-commit hook to your repository.
+
+    ```bash
+    $ gga install
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      Gentleman Guardian Angel v2.8.0
+      Provider-agnostic code review using AI
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ✅ Installed pre-commit hook: /Users/dev/projects/my-react-app/.git/hooks/pre-commit
+    ```
+  </Step>
+
+  <Step title="Make a commit — violations found">
+    Stage your files and commit. GGA reviews the staged files against your rules and blocks the commit when violations are found.
+
+    ```bash
+    $ git add src/components/Button.tsx
+    $ git commit -m "feat: add new button component"
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      Gentleman Guardian Angel v2.8.0
+      Provider-agnostic code review using AI
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ℹ️  Provider: claude
+    ℹ️  Rules file: AGENTS.md
+    ℹ️  File patterns: *.ts,*.tsx,*.js,*.jsx
+    ℹ️  Cache: enabled
+
+    Files to review:
+      - src/components/Button.tsx
+
+    ℹ️  Sending to claude for review...
+
+    STATUS: FAILED
+
+    Violations found:
+
+    1. **src/components/Button.tsx:3** - TypeScript Rule
+       - Issue: Using `any` type for props
+       - Fix: Define proper interface for ButtonProps
+
+    2. **src/components/Button.tsx:15** - React Rule
+       - Issue: Using `import * as React`
+       - Fix: Use `import { useState, useCallback } from 'react'`
+
+    3. **src/components/Button.tsx:22** - Styling Rule
+       - Issue: Hardcoded color `#3b82f6`
+       - Fix: Use Tailwind class `bg-blue-500` instead
+
+    ❌ CODE REVIEW FAILED
+
+    Fix the violations listed above before committing.
+    ```
+  </Step>
+
+  <Step title="Fix issues and commit again">
+    Fix the three violations in `Button.tsx`, then stage and commit again. GGA gives the green light.
+
+    ```bash
+    $ git add src/components/Button.tsx
+    $ git commit -m "feat: add new button component"
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      Gentleman Guardian Angel v2.8.0
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ℹ️  Provider: claude
+    ℹ️  Cache: enabled
+
+    Files to review:
+      - src/components/Button.tsx
+
+    ℹ️  Sending to claude for review...
+
+    STATUS: PASSED
+
+    All files comply with the coding standards defined in AGENTS.md.
+
+    ✅ CODE REVIEW PASSED
+
+    [main 4a2b3c1] feat: add new button component
+     1 file changed, 45 insertions(+)
+     create mode 100644 src/components/Button.tsx
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Project configuration examples
+
+The `.gga` config file controls which files GGA reviews and which AI provider it uses. Here are ready-to-use configs for common project types.
+
+<Tabs>
+  <Tab title="TypeScript / React">
+    ```bash
+    # .gga
+    PROVIDER="claude"
+    FILE_PATTERNS="*.ts,*.tsx"
+    EXCLUDE_PATTERNS="*.test.ts,*.test.tsx,*.spec.ts,*.d.ts,*.stories.tsx"
+    RULES_FILE="AGENTS.md"
+    ```
+
+    <Tip>Excluding `.stories.tsx` prevents GGA from reviewing Storybook files, which often intentionally break rules for demo purposes.</Tip>
+  </Tab>
+
+  <Tab title="Python">
+    ```bash
+    # .gga
+    PROVIDER="lmstudio:codellama"
+    FILE_PATTERNS="*.py"
+    EXCLUDE_PATTERNS="*_test.py,test_*.py,conftest.py,__pycache__/*"
+    RULES_FILE=".coding-standards.md"
+    ```
+
+    <Note>You can name your rules file anything — set `RULES_FILE` to the path you prefer.</Note>
+  </Tab>
+
+  <Tab title="Go">
+    ```bash
+    # .gga
+    PROVIDER="gemini"
+    FILE_PATTERNS="*.go"
+    EXCLUDE_PATTERNS="*_test.go,mock_*.go,*_mock.go"
+    ```
+  </Tab>
+
+  <Tab title="Full-stack monorepo">
+    ```bash
+    # .gga
+    PROVIDER="claude"
+    FILE_PATTERNS="*.ts,*.tsx,*.py,*.go"
+    EXCLUDE_PATTERNS="*.test.*,*_test.*,*.mock.*,*.d.ts,dist/*,build/*"
+    ```
+
+    <Tip>For monorepos, use the skills-based `AGENTS.md` approach below so the AI only loads rules relevant to the files being reviewed.</Tip>
+  </Tab>
+</Tabs>
+
+---
+
+## AGENTS.md examples
+
+### Minimal example
+
+A straightforward rules file for a TypeScript/React project:
+
+```markdown
+# Code Review Rules
+
+## TypeScript
+- No `any` types - use proper typing
+- Use `const` over `let` when possible
+- Prefer interfaces over type aliases for objects
+
+## React
+- Use functional components with hooks
+- No `import * as React` - use named imports like `import { useState }`
+- All images must have alt text for accessibility
+
+## Styling
+- Use Tailwind CSS utilities only
+- No inline styles or CSS-in-JS
+- No hardcoded colors - use design system tokens
+```
+
+### Battle-tested monorepo example
+
+This is a production-ready example using clear action keywords (`REJECT`, `REQUIRE`, `PREFER`) and cross-file references. It keeps the main file to 89 lines while delegating component-specific rules to sub-files that AI providers with file-reading tools (Claude, Gemini, Codex) can load on demand.
+
+```markdown
+# Code Review Rules
+
+## References
+
+- UI details: `ui/AGENTS.md`
+- SDK details: `sdk/AGENTS.md`
+
+---
+
+## ALL FILES
+
+REJECT if:
+
+- Hardcoded secrets/credentials
+- `any` type (TypeScript) or missing type hints (Python)
+- Code duplication (violates DRY)
+- Silent error handling (empty catch blocks)
+
+---
+
+## TypeScript/React
+
+REJECT if:
+
+- `import React` → use `import { useState }`
+- `var()` or hex colors in className → use Tailwind
+- `useMemo`/`useCallback` without justification (React 19 Compiler handles this)
+- Missing `"use client"` in client components
+
+PREFER:
+
+- `cn()` for conditional class merging
+- Semantic HTML over divs
+- Colocated files (component + test + styles)
+
+---
+
+## Python
+
+REJECT if:
+
+- Missing type hints on public functions
+- Bare `except:` without specific exception
+- `print()` instead of `logger`
+
+REQUIRE:
+
+- Docstrings on all public classes/methods
+
+---
+
+## Response Format
+
+FIRST LINE must be exactly:
+STATUS: PASSED
+or
+STATUS: FAILED
+
+If FAILED, list: `file:line - rule violated - issue`
+```
+
+### Skills-based approach for large projects
+
+For large or multi-stack projects, use a **skill index** so the AI only loads the rules relevant to the files in the current diff. This keeps prompts focused and produces higher-quality reviews.
+
+```markdown
+# Code Review Rules
+
+## Skill Index
+
+| Trigger (file pattern)          | Skill          | Location                       |
+|---------------------------------|----------------|--------------------------------|
+| `*.ts`, `*.tsx`                 | TypeScript     | `docs/skills/typescript.md`    |
+| `*.tsx`, `*.jsx`                | React          | `docs/skills/react.md`         |
+| `*.css`, `*.scss`, `className=` | Styling        | `docs/skills/tailwind.md`      |
+| `*.py`                          | Python         | `docs/skills/python.md`        |
+| `*.test.*`, `*.spec.*`          | Testing        | `docs/skills/testing.md`       |
+| `*.go`                          | Go             | `docs/skills/go.md`            |
+| `Dockerfile`, `*.yml`           | Infrastructure | `docs/skills/infra.md`         |
+
+---
+
+## General Rules (always active)
+
+REJECT if:
+- Hardcoded secrets or credentials
+- `console.log` / `print()` in production code
+- Empty catch/except blocks (silent error swallowing)
+- Code duplication (DRY violation)
+- Missing error handling
+
+REQUIRE:
+- Descriptive variable and function names
+- Error messages that help debugging
+
+## Response Format
+
+FIRST LINE must be exactly:
+STATUS: PASSED
+or
+STATUS: FAILED
+
+If FAILED, list: `file:line - rule violated - issue`
+```
+
+Each skill file is a focused, self-contained rule set. For example, `docs/skills/typescript.md`:
+
+```markdown
+<!-- docs/skills/typescript.md -->
+# TypeScript Review Rules
+
+REJECT if:
+- `any` type without `// @ts-expect-error` justification
+- Missing return types on exported functions
+- Type assertions (`as X`) without comment explaining why
+- `enum` used → use `as const` objects instead
+
+PREFER:
+- Discriminated unions over type guards
+- `satisfies` over type assertions
+- Named exports over default exports
+```
+
+<Note>The skills-based approach works best with providers that have file-reading capabilities: Claude, Gemini, and Codex. For Ollama and other pure LLMs without tool use, keep all rules in a single file.</Note>

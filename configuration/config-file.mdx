@@ -1,0 +1,244 @@
+---
+title: "Configuration file"
+description: "Complete reference for the .gga config file, all options, the configuration hierarchy, and environment variable overrides."
+---
+
+GGA is configured through a `.gga` file in your project root. Options can also be set globally or overridden with environment variables.
+
+## Config file format
+
+Run `gga init` to create a starter `.gga` file, or create it manually:
+
+```bash .gga
+# AI Provider (required)
+# Options: claude, gemini, codex, opencode, ollama:<model>, lmstudio[:model], github:<model>
+PROVIDER="claude"
+
+# File patterns to review (comma-separated globs)
+# Default: * (all files)
+FILE_PATTERNS="*.ts,*.tsx,*.js,*.jsx"
+
+# Patterns to exclude from review (comma-separated globs)
+# Default: none
+EXCLUDE_PATTERNS="*.test.ts,*.spec.ts,*.d.ts"
+
+# File containing your coding standards
+# Default: AGENTS.md
+RULES_FILE="AGENTS.md"
+
+# Fail if AI response is ambiguous (recommended for CI)
+# Default: true
+STRICT_MODE="true"
+
+# Timeout in seconds for AI provider response
+# Default: 300 (5 minutes)
+TIMEOUT="300"
+
+# Base branch for --pr-mode (auto-detects main/master/develop if empty)
+# PR_BASE_BRANCH="main"
+```
+
+## Config options
+
+<ParamField body="PROVIDER" type="string" required>
+  The AI provider to use for code review. Must be set in at least one config source.
+
+  Accepted values:
+
+  | Value | Provider |
+  |---|---|
+  | `claude` | Anthropic Claude Code CLI |
+  | `gemini` | Google Gemini CLI |
+  | `codex` | OpenAI Codex CLI |
+  | `opencode` | OpenCode CLI (default model) |
+  | `opencode:<model>` | OpenCode CLI with a specific model (e.g. `opencode:anthropic/claude-opus-4-5`) |
+  | `ollama:<model>` | Ollama with the specified local model (e.g. `ollama:llama3.2`) |
+  | `lmstudio` | LM Studio local server (uses currently loaded model) |
+  | `lmstudio:<model>` | LM Studio with a specific model (e.g. `lmstudio:llama-3.2-3b-instruct`) |
+  | `github:<model>` | GitHub Models API (e.g. `github:gpt-4o`) |
+</ParamField>
+
+<ParamField body="FILE_PATTERNS" type="string" default="*">
+  Comma-separated glob patterns for files to include in the review. Patterns are matched against the file's full path and its basename.
+
+  ```bash
+  # Review only TypeScript and JavaScript files
+  FILE_PATTERNS="*.ts,*.tsx,*.js,*.jsx"
+
+  # Review only Python files
+  FILE_PATTERNS="*.py"
+
+  # Review all files (default)
+  FILE_PATTERNS="*"
+  ```
+</ParamField>
+
+<ParamField body="EXCLUDE_PATTERNS" type="string">
+  Comma-separated glob patterns for files to exclude from the review. Applied after `FILE_PATTERNS`. No files are excluded by default.
+
+  ```bash
+  # Exclude test and type declaration files
+  EXCLUDE_PATTERNS="*.test.ts,*.spec.ts,*.test.tsx,*.spec.tsx,*.d.ts"
+
+  # Exclude Go test files and mock files
+  EXCLUDE_PATTERNS="*_test.go,*.mock.ts"
+  ```
+</ParamField>
+
+<ParamField body="RULES_FILE" type="string" default="AGENTS.md">
+  Path to the file containing your coding standards. The file contents are sent to the AI as the review ruleset. Relative paths are resolved from the directory where `gga` is run.
+
+  ```bash
+  # Default
+  RULES_FILE="AGENTS.md"
+
+  # Custom path
+  RULES_FILE="docs/CODE-REVIEW-RULES.md"
+  ```
+</ParamField>
+
+<ParamField body="STRICT_MODE" type="string" default="true">
+  Controls how GGA handles ambiguous AI responses — those that contain neither `STATUS: PASSED` nor `STATUS: FAILED` in the first 15 lines of output.
+
+  - `true` — treat ambiguous responses as failures (recommended for CI/CD)
+  - `false` — allow the commit to proceed when the response is ambiguous
+
+  ```bash
+  # Fail on ambiguous response (default, recommended)
+  STRICT_MODE="true"
+
+  # Allow commit on ambiguous response
+  STRICT_MODE="false"
+  ```
+</ParamField>
+
+<ParamField body="TIMEOUT" type="string" default="300">
+  Maximum number of seconds to wait for the AI provider to respond before timing out. If the timeout is exceeded, GGA exits with an error in strict mode or allows the commit in non-strict mode.
+
+  ```bash
+  # Default: 5 minutes
+  TIMEOUT="300"
+
+  # Increase for large changesets or slow connections
+  TIMEOUT="600"
+  ```
+</ParamField>
+
+<ParamField body="PR_BASE_BRANCH" type="string" default="auto-detect">
+  The base branch to diff against when running `gga run --pr-mode`. When not set, GGA automatically detects the base branch by checking for `main`, `master`, and `develop` in that order.
+
+  ```bash
+  # Explicit base branch
+  PR_BASE_BRANCH="main"
+
+  # Leave commented out to use auto-detection (default)
+  # PR_BASE_BRANCH="main"
+  ```
+</ParamField>
+
+## Configuration hierarchy
+
+GGA merges configuration from three sources. Higher-priority sources override lower ones:
+
+| Priority | Source | Location |
+|---|---|---|
+| **1 (highest)** | Environment variables | `GGA_PROVIDER`, `GGA_TIMEOUT` |
+| **2** | Project config | `.gga` in the project root |
+| **3 (lowest)** | Global config | Platform-specific path (see below) |
+
+This means you can set a global default provider in `~/.config/gga/config` and override it per project in `.gga`, or override both with an environment variable for a single run.
+
+## Global config file
+
+The global config file follows the same format as `.gga`. GGA resolves its path based on your platform:
+
+<Tabs>
+  <Tab title="macOS / Linux">
+    ```bash
+    ~/.config/gga/config
+    ```
+
+    If the `XDG_CONFIG_HOME` environment variable is set, GGA uses `$XDG_CONFIG_HOME/gga/config` instead.
+
+    ```bash
+    # Create the directory and global config
+    mkdir -p ~/.config/gga
+    cat > ~/.config/gga/config << 'EOF'
+    PROVIDER="claude"
+    TIMEOUT="300"
+    EOF
+    ```
+  </Tab>
+  <Tab title="Windows">
+    ```
+    %APPDATA%\gga\config
+    ```
+
+    ```powershell
+    # Create the directory and global config
+    New-Item -ItemType Directory -Force "$env:APPDATA\gga"
+    Set-Content "$env:APPDATA\gga\config" 'PROVIDER="claude"'
+    ```
+  </Tab>
+</Tabs>
+
+## Environment variable overrides
+
+These environment variables override the corresponding config file settings for a single run or the entire shell session:
+
+| Variable | Overrides | Description |
+|---|---|---|
+| `GGA_PROVIDER` | `PROVIDER` | Override the AI provider |
+| `GGA_TIMEOUT` | `TIMEOUT` | Override the response timeout (seconds) |
+| `GGA_CI_SOURCE_COMMIT` | _(none)_ | Override the source commit in `--ci` mode (default: `HEAD~1`) |
+| `GGA_NO_SPINNER` | _(none)_ | Set to any value to disable the animated spinner in TTY mode |
+| `GGA_TRACE` | _(none)_ | Set to any value to enable internal debug tracing output |
+
+```bash
+# Override provider for a single run
+GGA_PROVIDER="gemini" gga run
+
+# Override provider for the session
+export GGA_PROVIDER="ollama:llama3.2"
+
+# Override timeout for a single run
+GGA_TIMEOUT=600 gga run
+
+# Review from a specific commit in CI
+GGA_CI_SOURCE_COMMIT=abc1234 gga run --ci
+
+# Disable spinner (useful when output is piped)
+GGA_NO_SPINNER=1 gga run
+
+# Enable debug tracing
+GGA_TRACE=1 gga run
+```
+
+## Inspecting the current config
+
+Run `gga config` to see which config files were found and what values are currently active:
+
+```bash
+gga config
+```
+
+```
+  Config Files:
+    Global:  /Users/you/.config/gga/config
+    Project: .gga
+
+  Values:
+    PROVIDER:          claude
+    FILE_PATTERNS:     *.ts,*.tsx,*.js,*.jsx
+    EXCLUDE_PATTERNS:  *.test.ts,*.spec.ts,*.d.ts
+    RULES_FILE:        AGENTS.md
+    STRICT_MODE:       true
+    TIMEOUT:           300s
+    PR_BASE_BRANCH:    auto-detect
+
+  Rules File: Found
+```
+
+<Tip>
+  Run `gga init` to generate a starter `.gga` file with all options documented inline. It's safe to run in an existing project — GGA will prompt before overwriting.
+</Tip>

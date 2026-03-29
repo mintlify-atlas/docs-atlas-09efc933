@@ -1,0 +1,72 @@
+---
+title: "Introduction"
+description: "Provider-agnostic AI code review that enforces your coding standards on every commit. Zero dependencies. Pure Bash."
+---
+
+Gentleman Guardian Angel (GGA) is a CLI tool that runs an AI code review on every `git commit`. It sends your staged files to an AI provider — Claude, Gemini, Codex, OpenCode, Ollama, LM Studio, GitHub Models, or any other — and validates them against the coding standards you define in an `AGENTS.md` file.
+
+If the code passes, the commit goes through. If it fails, the commit is blocked with a detailed breakdown of every violation.
+
+## The problem
+
+You have coding standards. Your team ignores them. Code reviews catch issues too late.
+
+By the time a pull request is open, violations are already in the branch history. Reviewers repeat the same comments. Authors feel like they're being nitpicked. Nothing changes.
+
+GGA shifts enforcement to the earliest possible moment: the commit itself. Like having a senior developer review every line before it hits the repo.
+
+```
+┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
+│   git commit    │ ──▶ │  AI Review   │ ──▶ │  ✅ Pass/Fail   │
+│  (staged files) │     │  (any LLM)   │     │  (with details) │
+└─────────────────┘     └──────────────┘     └─────────────────┘
+```
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Provider agnostic" icon="plug">
+    Use Claude, Gemini, Codex, OpenCode, Ollama, LM Studio, GitHub Models, or any AI CLI. Switch providers by changing one line in your config.
+  </Card>
+  <Card title="Zero dependencies" icon="feather">
+    Pure Bash — no Node, Python, or Go required. Runs anywhere Bash 5.0+ is available.
+  </Card>
+  <Card title="Git-native" icon="code-branch">
+    Installs as a standard Git pre-commit hook. No wrapper tools, no external hook managers required (though they're supported).
+  </Card>
+  <Card title="Smart caching" icon="bolt">
+    Files that previously passed are skipped on the next commit. Only new or changed files are sent for review.
+  </Card>
+  <Card title="PR review mode" icon="code-pull-request">
+    Review an entire pull request — not just the last commit — with `gga run --pr-mode`. Useful before opening a PR for human review.
+  </Card>
+  <Card title="CI/CD support" icon="circle-check">
+    Run in GitHub Actions, GitLab CI, or any pipeline with `gga run --ci`. Reviews the files changed in the last commit.
+  </Card>
+  <Card title="Cross-platform" icon="display">
+    Runs on macOS, Linux, Windows (Git Bash), and WSL. No special configuration needed per platform.
+  </Card>
+  <Card title="Commit-msg hook" icon="message">
+    Optional commit-msg hook variant validates the commit message itself alongside the staged files.
+  </Card>
+</CardGroup>
+
+## How it compares to PR review
+
+Traditional code review happens at pull request time — after the code is written, after it's pushed, and after a reviewer's calendar allows for it. Feedback arrives late, and fixing violations means amending commits or adding fixup commits to an already-open PR.
+
+GGA enforces standards at commit time, before the code ever leaves your machine. Violations are caught in seconds, while context is fresh and fixes are trivial. By the time a PR is opened, it's already clean.
+
+The two approaches are complementary: GGA handles automated standards enforcement; human reviewers focus on architecture, business logic, and judgment calls that AI can't make.
+
+<Note>
+  GGA does not replace human code review. It handles the mechanical, repeatable parts — so human reviewers can focus on what matters.
+</Note>
+
+## Get started
+
+Ready to set up GGA on your project?
+
+<Card title="Quick Start" icon="rocket" href="/quickstart">
+  Install GGA and run your first AI code review in under 5 minutes.
+</Card>

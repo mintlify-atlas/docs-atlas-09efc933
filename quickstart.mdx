@@ -1,80 +1,238 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start"
+description: "Install GGA and run your first AI code review in under 5 minutes."
 ---
 
-## Get started in three steps
+This guide walks you through installing GGA, configuring it for your project, and making your first reviewed commit.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+- Bash 5.0 or later (macOS, Linux, Windows Git Bash, or WSL)
+- Git repository
+- At least one supported AI provider installed (see step 3)
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
+  <Step title="Install GGA">
+    <Tabs>
+      <Tab title="Homebrew (recommended)">
+        ```bash
+        brew install gentleman-programming/tap/gga
+        ```
 
-### Step 2: Deploy your changes
+        Homebrew handles updates automatically via `brew upgrade gga`.
+      </Tab>
+      <Tab title="Manual (macOS / Linux)">
+        ```bash
+        git clone https://github.com/Gentleman-Programming/gentleman-guardian-angel.git
+        cd gentleman-guardian-angel
+        ./install.sh
+        ```
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+        The installer copies `gga` to `/usr/local/bin` if it is writable, otherwise to `~/.local/bin`. If the install directory is not on your `PATH`, the installer will print the exact line to add to your shell config (`~/.bashrc` or `~/.zshrc`).
+      </Tab>
+      <Tab title="Windows (Git Bash)">
+        ```bash
+        git clone https://github.com/Gentleman-Programming/gentleman-guardian-angel.git
+        cd gentleman-guardian-angel
+        bash install.sh
+        echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+        ```
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+        <Note>
+          WSL is also fully supported — no special configuration needed. Follow the macOS / Linux steps inside your WSL terminal.
+        </Note>
+      </Tab>
+    </Tabs>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    Verify the installation:
 
-### Step 3: Go live
+    ```bash
+    gga version
+    ```
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Initialize your project config">
+    Navigate to your project root and run:
+
+    ```bash
+    cd ~/your-project
+    gga init
+    ```
+
+    This creates a `.gga` config file with all available options and their defaults:
+
+    ```bash
+    # Gentleman Guardian Angel Configuration
+
+    # AI Provider (required)
+    # Options: claude, gemini, codex, opencode, ollama:<model>, lmstudio[:model], github:<model>
+    PROVIDER="claude"
+
+    # File patterns to include in review (comma-separated)
+    FILE_PATTERNS="*.ts,*.tsx,*.js,*.jsx"
+
+    # File patterns to exclude from review (comma-separated)
+    EXCLUDE_PATTERNS="*.test.ts,*.spec.ts,*.test.tsx,*.spec.tsx,*.d.ts"
+
+    # File containing code review rules
+    RULES_FILE="AGENTS.md"
+
+    # Strict mode: fail if AI response is ambiguous
+    STRICT_MODE="true"
+
+    # Timeout in seconds for AI provider response
+    TIMEOUT="300"
+    ```
+  </Step>
+
+  <Step title="Set your AI provider">
+    Open `.gga` and set `PROVIDER` to the AI tool you have installed:
+
+    | Provider | Config value | Notes |
+    |----------|-------------|-------|
+    | Claude | `claude` | Requires `claude` CLI |
+    | Gemini | `gemini` | Requires `gemini` CLI |
+    | Codex | `codex` | `npm i -g @openai/codex` |
+    | OpenCode | `opencode` | Requires `opencode` CLI |
+    | Ollama | `ollama:llama3.2` | Replace with your model name |
+    | LM Studio | `lmstudio` | Or `lmstudio:model-name` |
+    | GitHub Models | `github:gpt-4o` | Replace with your model name |
+
+    For example, to use a local Ollama model:
+
+    ```bash
+    PROVIDER="ollama:llama3.2"
+    ```
+
+    <Tip>
+      See the [Providers](/configuration/providers) page for detailed setup instructions for each provider.
+    </Tip>
+  </Step>
+
+  <Step title="Create your AGENTS.md">
+    Create an `AGENTS.md` file in your project root with the coding standards you want enforced. This file is the only input to the AI reviewer — write it clearly.
+
+    Here is a minimal example:
+
+    ```markdown
+    # Code Review Rules
+
+    ## TypeScript
+    - Use `const` or `let`. Never use `var`.
+    - Prefer interfaces over type aliases for object shapes.
+    - No `any` types. Use `unknown` and narrow with type guards.
+    - All functions must have explicit return type annotations.
+
+    ## React
+    - Use functional components only. No class components.
+    - Use named exports. No default exports.
+    - Keep components under 150 lines. Extract logic into custom hooks.
+
+    ## General
+    - No `console.log` in committed code. Use a logger.
+    - No commented-out code blocks.
+    - Every new function needs a JSDoc comment.
+    ```
+
+    <Tip>
+      The more specific your rules, the more accurate the review. Vague rules like "write clean code" produce inconsistent results. See [Writing your rules file](/configuration/rules-file) for best practices.
+    </Tip>
+  </Step>
+
+  <Step title="Install the pre-commit hook">
+    ```bash
+    gga install
+    ```
+
+    This adds GGA to your repo's `.git/hooks/pre-commit` file. If a pre-commit hook already exists, GGA is appended to it safely — existing hooks are not overwritten.
+
+    To install the commit-msg hook variant instead (which also validates the commit message):
+
+    ```bash
+    gga install --commit-msg
+    ```
+  </Step>
+
+  <Step title="Make a commit">
+    Stage your files and commit as normal:
+
+    ```bash
+    git add src/component.tsx
+    git commit -m "add user profile component"
+    ```
+
+    GGA runs automatically. You will see output like this on a passing review:
+
+    ```
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      Gentleman Guardian Angel v2.8.0
+      Provider-agnostic code review using AI
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ℹ️  Provider: claude
+    ℹ️  Rules file: AGENTS.md
+    ℹ️  File patterns: *.ts,*.tsx,*.js,*.jsx
+    ℹ️  Cache: enabled
+
+    Files to review:
+      - src/component.tsx
+
+    ℹ️  Sending to claude for review (timeout: 300s)...
+
+    STATUS: PASSED
+
+    All files comply with the coding standards.
+
+    ✅ CODE REVIEW PASSED
+    ```
+
+    On a failing review, the commit is blocked:
+
+    ```
+    STATUS: FAILED
+
+    Violations found:
+
+    - src/component.tsx, line 12
+      Rule: No `any` types
+      Issue: Parameter `data` is typed as `any`. Use a specific interface or `unknown`.
+
+    - src/component.tsx, line 34
+      Rule: Named exports only
+      Issue: Component uses a default export. Change to a named export.
+
+    ❌ CODE REVIEW FAILED
+
+    Fix the violations listed above before committing.
+    ```
+  </Step>
+</Steps>
+
+## Bypassing the review
+
+When you need to commit without a review — for example, a work-in-progress checkpoint or a documentation-only change — use Git's built-in bypass flag:
+
+```bash
+git commit --no-verify -m "wip: rough draft"
+```
+
+<Warning>
+  Use `--no-verify` sparingly. It bypasses all Git hooks, not just GGA. Reserve it for situations where you intentionally want to skip automated checks.
+</Warning>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Configuration" icon="sliders" href="/configuration/config-file">
+    Explore all `.gga` config options: file patterns, timeouts, strict mode, and global config.
+  </Card>
+  <Card title="Providers" icon="plug" href="/configuration/providers">
+    Detailed setup instructions for Claude, Gemini, Ollama, GitHub Models, and more.
+  </Card>
+  <Card title="How it works" icon="circle-info" href="/how-it-works">
+    Understand the full commit flow, prompt structure, caching, and pass/fail logic.
+  </Card>
+  <Card title="Command reference" icon="terminal" href="/commands/reference">
+    Every GGA command and flag, with examples.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,0 +1,217 @@
+---
+title: "Run modes"
+description: "All the ways gga run can be invoked — staged files, CI pipelines, full PR reviews, and commit-msg hooks."
+---
+
+`gga run` supports several modes depending on where and how you need code review to happen. The default mode is designed for local pre-commit hooks. CI and PR modes are designed for pipelines.
+
+<Tabs>
+  <Tab title="Default">
+    ## Default mode: `gga run`
+
+    Reviews files currently staged with `git add`. This is the mode invoked by the pre-commit hook installed with `gga install`.
+
+    ```bash
+    gga run
+    ```
+
+    Smart caching is enabled by default. Files that haven't changed since their last passed review are skipped automatically.
+
+    **Terminal output:**
+
+    ```bash
+    ℹ️  Provider: claude
+    ℹ️  Rules file: AGENTS.md
+    ℹ️  File patterns: *.ts,*.tsx,*.js,*.jsx
+    ℹ️  Cache: enabled
+
+    Files to review:
+      - src/components/Button.tsx
+
+    # ...AI review output...
+
+    ✅ CODE REVIEW PASSED
+    ```
+
+    If all staged files are already cached:
+
+    ```bash
+    ✅ 3 file(s) passed from cache
+
+    Files to review:
+      All files passed from cache!
+
+    ✅ CODE REVIEW PASSED (cached)
+    ```
+
+    <Tip>
+      To force a review of all staged files regardless of cache, use `gga run --no-cache`.
+    </Tip>
+  </Tab>
+  <Tab title="No-cache">
+    ## No-cache mode: `gga run --no-cache`
+
+    Forces all matching staged files to be reviewed, ignoring any cached results.
+
+    ```bash
+    gga run --no-cache
+    ```
+
+    **Terminal output:**
+
+    ```bash
+    ℹ️  Provider: claude
+    ℹ️  Rules file: AGENTS.md
+    ℹ️  File patterns: *.ts,*.tsx,*.js,*.jsx
+    ℹ️  Cache: disabled (--no-cache)
+
+    Files to review:
+      - src/components/Button.tsx
+      - src/utils/helpers.ts
+    ```
+
+    Use this when you want to re-review files that are already in the cache — for example, after updating your `AGENTS.md` rules but before the cache has been automatically invalidated.
+  </Tab>
+  <Tab title="CI mode">
+    ## CI mode: `gga run --ci`
+
+    Reviews files changed in the last commit (`HEAD~1..HEAD`). Cache is automatically disabled in CI mode.
+
+    ```bash
+    gga run --ci
+    ```
+
+    **Terminal output:**
+
+    ```bash
+    ℹ️  Provider: claude
+    ℹ️  Rules file: AGENTS.md
+    ℹ️  File patterns: *.ts,*.tsx,*.js,*.jsx
+    ℹ️  Mode: CI (reviewing last commit)
+    ℹ️  Cache: disabled (CI mode)
+
+    Files to review:
+      - src/api/users.ts
+    ```
+
+    Use this in GitHub Actions, GitLab CI, or any other CI pipeline that runs after a push:
+
+    ```yaml
+    - name: Run GGA code review
+      run: gga run --ci
+    ```
+
+    **Override the source commit.** By default, CI mode compares `HEAD~1..HEAD`. To compare against a different commit, set the `GGA_CI_SOURCE_COMMIT` environment variable:
+
+    ```bash
+    GGA_CI_SOURCE_COMMIT=abc1234 gga run --ci
+    ```
+
+    This is useful in pipelines where `HEAD~1` may not be the intended comparison point — for example, after a merge or rebase.
+  </Tab>
+  <Tab title="PR mode">
+    ## PR mode: `gga run --pr-mode`
+
+    Reviews all files changed across the full pull request by comparing the current branch against the base branch. Cache is automatically disabled in PR mode.
+
+    ```bash
+    gga run --pr-mode
+    ```
+
+    **Terminal output:**
+
+    ```bash
+    ℹ️  Provider: claude
+    ℹ️  Rules file: AGENTS.md
+    ℹ️  File patterns: *.ts,*.tsx,*.js,*.jsx
+    ℹ️  Mode: PR (full file review)
+    ℹ️  Cache: disabled (PR mode)
+    ℹ️  PR range: main...feature/my-branch
+
+    Files to review:
+      - src/components/Button.tsx
+      - src/components/Modal.tsx
+      - src/utils/helpers.ts
+    ```
+
+    GGA auto-detects the base branch by checking for `main`, `master`, then `develop`. To set the base branch explicitly, add `PR_BASE_BRANCH` to your `.gga` config:
+
+    ```bash
+    PR_BASE_BRANCH="main"
+    ```
+
+    Use this in pull request pipelines:
+
+    ```yaml
+    - name: Review PR changes
+      run: gga run --pr-mode
+    ```
+  </Tab>
+  <Tab title="PR diff-only">
+    ## PR diff-only mode: `gga run --pr-mode --diff-only`
+
+    Like PR mode, but sends only the unified diff to the AI instead of full file contents. This is faster and cheaper for large pull requests with many changed files.
+
+    ```bash
+    gga run --pr-mode --diff-only
+    ```
+
+    **Terminal output:**
+
+    ```bash
+    ℹ️  Provider: claude
+    ℹ️  Rules file: AGENTS.md
+    ℹ️  File patterns: *.ts,*.tsx,*.js,*.jsx
+    ℹ️  Mode: PR (diff-only review)
+    ℹ️  Cache: disabled (PR mode)
+    ℹ️  PR range: main...feature/my-branch
+    ```
+
+    <Warning>
+      `--diff-only` is only valid when combined with `--pr-mode`. Using `--diff-only` without `--pr-mode` will result in an error.
+    </Warning>
+
+    Use this when you want to minimize token usage on large PRs where the AI only needs to see what changed, not the full context of every file.
+  </Tab>
+  <Tab title="Commit-msg">
+    ## Commit-msg mode
+
+    When the commit-msg hook is installed with `gga install --commit-msg`, git passes the path to the commit message file as the first argument to the hook. The hook invokes:
+
+    ```bash
+    gga run "$1"
+    ```
+
+    GGA reads the commit message file and includes the message in the AI review prompt. This lets you enforce commit message conventions — such as conventional commits format or required issue references — alongside your code standards.
+
+    <Steps>
+      <Step title="Install the commit-msg hook">
+        ```bash
+        gga install --commit-msg
+        ```
+      </Step>
+      <Step title="Commit as normal">
+        ```bash
+        git add src/feature.ts
+        git commit -m "feat: add new feature"
+        ```
+
+        GGA reviews both the staged files and the commit message together.
+      </Step>
+    </Steps>
+
+    <Note>
+      The commit message is included automatically when `gga run` receives a file path argument that resolves to an existing file. No extra flags are needed — the hook handles this.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Mode comparison
+
+| Mode | Files reviewed | Cache | Use case |
+| --- | --- | --- | --- |
+| `gga run` | Staged files | Enabled | Local pre-commit hook |
+| `gga run --no-cache` | Staged files | Disabled | Force re-review |
+| `gga run --ci` | Last commit (`HEAD~1..HEAD`) | Disabled | CI pipelines after push |
+| `gga run --pr-mode` | All PR changes (full files) | Disabled | PR pipelines |
+| `gga run --pr-mode --diff-only` | All PR changes (diffs only) | Disabled | Large PR pipelines |

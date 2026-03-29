@@ -1,0 +1,230 @@
+---
+title: "How It Works"
+description: "The full commit flow, prompt structure, pass/fail logic, caching, and STRICT_MODE explained."
+---
+
+When you run `git commit`, GGA intercepts the commit via a Git pre-commit hook, sends your staged files to an AI provider for review, and either allows or blocks the commit based on the AI's response.
+
+```
+git commit
+    │
+    ▼
+pre-commit hook
+    │
+    ▼
+gga run
+    │
+    ├─▶ Load config (.gga)
+    ├─▶ Validate provider is installed
+    ├─▶ Check AGENTS.md exists
+    ├─▶ Get staged files (filtered by FILE_PATTERNS / EXCLUDE_PATTERNS)
+    ├─▶ Filter out cached files (already passed)
+    ├─▶ Build prompt: rules + file contents
+    ├─▶ Send to AI provider (with timeout + progress)
+    │
+    ▼
+Parse response
+    │
+    ├─▶ STATUS: PASSED → cache files, allow commit ✅
+    └─▶ STATUS: FAILED → block commit, show violations ❌
+```
+
+## Step-by-step flow
+
+<Steps>
+  <Step title="Load config from .gga">
+    GGA loads configuration in this order, with each level overriding the previous:
+
+    1. **Global config** — `~/.config/gga/config` (or `%APPDATA%\gga\config` on Windows)
+    2. **Project config** — `.gga` in the current directory
+    3. **Environment variables** — `GGA_PROVIDER`, `GGA_TIMEOUT`
+
+    The key settings are:
+
+    | Setting | Default | Description |
+    |---------|---------|-------------|
+    | `PROVIDER` | _(required)_ | Which AI to use |
+    | `FILE_PATTERNS` | `*` | Which files to include |
+    | `EXCLUDE_PATTERNS` | _(none)_ | Which files to skip |
+    | `RULES_FILE` | `AGENTS.md` | Path to your coding standards |
+    | `STRICT_MODE` | `true` | How to handle ambiguous AI responses |
+    | `TIMEOUT` | `300` | Seconds to wait for the AI |
+  </Step>
+
+  <Step title="Validate provider is installed">
+    GGA checks that the configured provider CLI is available on your `PATH`. If it is not found, GGA exits with an error before doing any other work.
+
+    For example, if `PROVIDER="claude"` is set but the `claude` CLI is not installed, you will see:
+
+    ```
+    ❌ Provider 'claude' not found. Please install it first.
+    ```
+  </Step>
+
+  <Step title="Check AGENTS.md exists">
+    GGA verifies that the file referenced by `RULES_FILE` (default: `AGENTS.md`) exists in the project. If it does not, the review is blocked with instructions:
+
+    ```
+    ❌ Rules file not found: AGENTS.md
+
+    Please create an AGENTS.md file with your coding standards.
+
+    Example content:
+      # Code Review Rules
+
+      ## TypeScript
+      - Use const/let, never var
+      - Prefer interfaces over types
+      - No any types
+    ```
+  </Step>
+
+  <Step title="Get staged files">
+    GGA calls `git diff --cached --name-only --diff-filter=ACM` to get the list of added, copied, and modified files in the staging area.
+
+    This list is then filtered:
+
+    - **Include**: only files matching `FILE_PATTERNS` (comma-separated glob patterns, e.g. `*.ts,*.tsx`)
+    - **Exclude**: files matching `EXCLUDE_PATTERNS` (e.g. `*.test.ts,*.spec.ts,*.d.ts`)
+
+    Pattern matching is suffix-based for `*`-prefixed patterns (e.g., `*.tsx` matches any file ending in `.tsx`) and exact-match for all others.
+
+    In **CI mode** (`--ci`), GGA uses `git diff --name-only HEAD~1..HEAD` instead of reading the staging area — reviewing the files changed in the last commit rather than staged files.
+
+    In **PR mode** (`--pr-mode`), GGA detects the base branch and reviews all files changed across the full PR range.
+  </Step>
+
+  <Step title="Filter out cached files">
+    If caching is enabled (the default), GGA skips any file that:
+
+    - Has not changed since it last passed review
+    - Was reviewed under the same `AGENTS.md` and `.gga` config
+
+    The cache is automatically invalidated when either `AGENTS.md` or `.gga` changes — ensuring that new rules are applied to previously-cached files.
+
+    Files that pass the current review are added to the cache. Files that fail are not cached.
+
+    Use `gga run --no-cache` to force a full review, ignoring all cached results.
+
+    <Tip>
+      Run `gga cache status` to see which files are cached and how much disk space the cache is using.
+    </Tip>
+  </Step>
+
+  <Step title="Build the prompt">
+    GGA constructs a prompt that includes:
+
+    1. The full contents of your `AGENTS.md` as the coding standards
+    2. The full contents of each staged file (read from the Git staging area with `git show :file`, not from the working directory — so what is reviewed is exactly what will be committed)
+    3. Instructions to the AI on what format to respond in
+
+    The prompt template looks like this:
+
+    ```
+    You are a code reviewer. Analyze the files below and validate they comply with the coding standards provided.
+
+    === CODING STANDARDS ===
+    [contents of AGENTS.md]
+    === END CODING STANDARDS ===
+
+    === FILES TO REVIEW ===
+
+    --- FILE: src/component.tsx ---
+    [staged file contents]
+
+    === END FILES ===
+
+    **IMPORTANT: Your response MUST include one of these lines near the beginning:**
+    STATUS: PASSED
+    STATUS: FAILED
+
+    **If FAILED:** List each violation with:
+    - File name
+    - Line number (if applicable)
+    - Rule violated
+    - Description of the issue
+
+    **If PASSED:** Confirm all files comply with the coding standards.
+
+    **Begin with STATUS:**
+    ```
+
+    If the commit-msg hook variant is installed, the commit message is also included in the prompt between the coding standards and the files.
+  </Step>
+
+  <Step title="Send to AI provider">
+    GGA pipes the prompt to your configured provider's CLI and waits for a response, up to `TIMEOUT` seconds (default: 300).
+
+    A progress indicator is shown while waiting. If the provider does not respond within the timeout:
+
+    - In **STRICT_MODE=true** (default): the commit is blocked
+    - In **STRICT_MODE=false**: the commit is allowed through with a warning
+  </Step>
+
+  <Step title="Parse the response">
+    GGA scans the first 15 lines of the AI's response for a status line. It accepts both plain and markdown-formatted variants:
+
+    - `STATUS: PASSED`
+    - `STATUS: FAILED`
+    - `**STATUS: PASSED**`
+    - `**STATUS: FAILED**`
+
+    **If `STATUS: PASSED`** — cached files are written to the cache and the commit proceeds.
+
+    **If `STATUS: FAILED`** — the full AI response (including violation details) is printed and the commit is blocked with exit code 1. Git will not create the commit.
+
+    **If neither is found** — this is an ambiguous response. STRICT_MODE controls the outcome (see below).
+  </Step>
+</Steps>
+
+## STRICT_MODE behavior
+
+`STRICT_MODE` controls what happens when the AI response does not contain `STATUS: PASSED` or `STATUS: FAILED` in the first 15 lines.
+
+| STRICT_MODE | Outcome |
+|-------------|---------|
+| `true` (default) | Commit is blocked. GGA exits with an error. |
+| `false` | Commit is allowed. GGA exits with a warning. |
+
+With `STRICT_MODE=true`:
+
+```
+⚠️  Could not determine review status
+❌ STRICT MODE: Failing due to ambiguous response
+
+Expected 'STATUS: PASSED' or 'STATUS: FAILED' in the first 15 lines
+Set STRICT_MODE=false in config to allow ambiguous responses
+```
+
+With `STRICT_MODE=false`:
+
+```
+⚠️  Could not determine review status
+⚠️  Allowing commit (STRICT_MODE=false)
+```
+
+<Note>
+  Ambiguous responses are rare with well-known providers but can occur with local models that don't reliably follow output formatting instructions. If you see frequent ambiguous responses, try a more capable model or refine your `AGENTS.md` to be more explicit.
+</Note>
+
+## The commit-msg hook variant
+
+`gga install --commit-msg` installs GGA as a commit-msg hook instead of a pre-commit hook. In this mode:
+
+- The Git commit message file is passed to `gga run` as an argument
+- The commit message is included in the AI prompt alongside the staged file contents
+- The AI can validate both code quality and commit message quality in one pass
+
+This is useful for teams that want to enforce commit message conventions (conventional commits, ticket references, etc.) alongside code standards.
+
+## Caching internals
+
+The cache is stored per-project in a directory derived from the repo's root path. Each cached file is recorded by its content hash. The cache also stores a hash of `AGENTS.md` and `.gga` — if either changes, all cached entries are invalidated automatically.
+
+Cache commands:
+
+```bash
+gga cache status      # Show cache directory, validity, file count, and size
+gga cache clear       # Clear cache for the current project
+gga cache clear-all   # Clear all GGA cache data across all projects
+```

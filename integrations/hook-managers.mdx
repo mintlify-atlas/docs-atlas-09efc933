@@ -1,0 +1,255 @@
+---
+title: "Hook managers"
+description: "Integrate GGA with Husky, pre-commit, and Lefthook."
+---
+
+GGA works alongside popular git hook managers. Use these integrations when your project already uses a hook manager, or when you want to combine GGA with linters, formatters, and type checkers in a single hook pipeline.
+
+<Note>
+If your project has no existing hook manager, `gga install` is all you need — it writes a native git hook directly and requires no additional tooling.
+</Note>
+
+## Husky
+
+[Husky](https://typicode.github.io/husky/) is widely used in JavaScript and TypeScript projects.
+
+<AccordionGroup>
+  <Accordion title="Basic setup" defaultOpen={true}>
+
+<Steps>
+  <Step title="Install Husky">
+
+```bash
+npm install -D husky
+```
+
+  </Step>
+  <Step title="Initialize Husky">
+
+```bash
+npx husky init
+```
+
+This creates a `.husky/` directory with a default `pre-commit` file.
+
+  </Step>
+  <Step title="Edit the pre-commit hook">
+
+Replace the contents of `.husky/pre-commit` with:
+
+```bash .husky/pre-commit
+#!/usr/bin/env bash
+
+# Run Gentleman Guardian Angel
+gga run || exit 1
+
+# Your other checks (optional)
+npm run lint
+npm run typecheck
+```
+
+  </Step>
+</Steps>
+
+  </Accordion>
+  <Accordion title="With lint-staged">
+
+Use lint-staged alongside GGA to run formatters only on staged files.
+
+<Steps>
+  <Step title="Install dependencies">
+
+```bash
+npm install -D husky lint-staged
+```
+
+  </Step>
+  <Step title="Configure lint-staged in package.json">
+
+```json package.json
+{
+  "scripts": {
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": ["eslint --fix", "prettier --write"]
+  }
+}
+```
+
+  </Step>
+  <Step title="Edit the pre-commit hook">
+
+```bash .husky/pre-commit
+#!/usr/bin/env bash
+
+# AI Review first (uses git staged files internally)
+gga run || exit 1
+
+# Then lint-staged for formatting
+npx lint-staged
+```
+
+  </Step>
+</Steps>
+
+<Tip>
+Run GGA before lint-staged so that formatting changes do not affect the files GGA reviews. GGA reads from the git staging area directly.
+</Tip>
+
+  </Accordion>
+</AccordionGroup>
+
+## pre-commit
+
+[pre-commit](https://pre-commit.com/) is the standard hook manager for Python projects and works with any language.
+
+<AccordionGroup>
+  <Accordion title="Setup" defaultOpen={true}>
+
+<Steps>
+  <Step title="Install pre-commit">
+
+<Tabs>
+  <Tab title="pip">
+
+```bash
+pip install pre-commit
+```
+
+  </Tab>
+  <Tab title="Homebrew">
+
+```bash
+brew install pre-commit
+```
+
+  </Tab>
+</Tabs>
+
+  </Step>
+  <Step title="Create .pre-commit-config.yaml">
+
+```yaml .pre-commit-config.yaml
+repos:
+  # Gentleman Guardian Angel (runs first)
+  - repo: local
+    hooks:
+      - id: gga
+        name: Gentleman Guardian Angel
+        entry: gga run
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+  # Your other hooks
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+```
+
+  </Step>
+  <Step title="Install the hooks">
+
+```bash
+pre-commit install
+```
+
+  </Step>
+</Steps>
+
+  </Accordion>
+  <Accordion title="Running manually">
+
+Run all configured hooks against every file in the repository:
+
+```bash
+pre-commit run --all-files
+```
+
+Run only the GGA hook:
+
+```bash
+pre-commit run gga
+```
+
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+`pass_filenames: false` is required. GGA determines which files to review from the git staging area, not from command-line arguments.
+</Note>
+
+## Lefthook
+
+[Lefthook](https://github.com/evilmartians/lefthook) is a fast, language-agnostic hook manager written in Go.
+
+<AccordionGroup>
+  <Accordion title="Setup" defaultOpen={true}>
+
+<Steps>
+  <Step title="Install Lefthook">
+
+<Tabs>
+  <Tab title="Homebrew">
+
+```bash
+brew install lefthook
+```
+
+  </Tab>
+  <Tab title="npm">
+
+```bash
+npm install -D lefthook
+```
+
+  </Tab>
+</Tabs>
+
+  </Step>
+  <Step title="Create lefthook.yml">
+
+```yaml lefthook.yml
+pre-commit:
+  parallel: false
+  commands:
+    ai-review:
+      run: gga run
+      fail_text: "Gentleman Guardian Angel failed. Fix violations before committing."
+
+    lint:
+      glob: "*.{ts,tsx,js,jsx}"
+      run: npm run lint
+
+    typecheck:
+      run: npm run typecheck
+```
+
+  </Step>
+  <Step title="Activate the hooks">
+
+```bash
+lefthook install
+```
+
+  </Step>
+</Steps>
+
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+`parallel: false` is set intentionally. Lefthook runs commands in parallel by default, but GGA must complete before other commands run — otherwise a failed review would not block subsequent steps.
+</Warning>
